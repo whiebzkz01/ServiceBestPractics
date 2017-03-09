@@ -39,34 +39,34 @@ public class DownloadTask extends AsyncTask<String, Integer, Integer> {
         RandomAccessFile savedFile = null;
         File file = null;
         try {
-            long downloadLength = 0;
-            String downlaodUrl = params[0];
-            String fileName = downlaodUrl.substring(downlaodUrl.lastIndexOf("/"));
+            long downloadedLength = 0;
+            String downloadUrl = params[0];
+            String fileName = downloadUrl.substring(downloadUrl.lastIndexOf("/"));
             String directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath();
             file = new File(directory + fileName);
             if (file.exists()) {
-                downloadLength = file.length();
+                downloadedLength = file.length();
             }
-            long contentLength = getContentLength(downlaodUrl);
+            long contentLength = getContentLength(downloadUrl);
             if (contentLength == 0) {
                 return TYPE_FAILED;
-            } else if (contentLength == downloadLength) {
+            } else if (contentLength == downloadedLength) {
                 return TYPE_SUCCESS;
             }
             OkHttpClient client = new OkHttpClient();
             Request request = new Request.Builder()
-                    .addHeader("RANGE", "bytes = " + downloadLength + "-")
-                    .url(downlaodUrl)
+                    .addHeader("RANGE", "bytes = " + downloadedLength + "-")
+                    .url(downloadUrl)
                     .build();
             Response response = client.newCall(request).execute();
             if (response != null) {
                 is = response.body().byteStream();
                 savedFile = new RandomAccessFile(file, "rw");
-                savedFile.seek(downloadLength);
+                savedFile.seek(downloadedLength);
                 byte[] b = new byte[1024];
                 int total = 0;
                 int len;
-                while ((len = is.read()) != -1) {
+                while ((len = is.read(b)) != -1) {
                     if (isCanceled) {
                         return TYPE_CANCELED;
                     } else if (isPaused) {
@@ -74,7 +74,7 @@ public class DownloadTask extends AsyncTask<String, Integer, Integer> {
                     } else {
                         total += len;
                         savedFile.write(b, 0, len);
-                        int progress = (int) ((total + downloadLength) * 100 / contentLength);
+                        int progress = (int) ((total + downloadedLength) * 100 / contentLength);
                         publishProgress(progress);
                     }
                 }
@@ -100,21 +100,6 @@ public class DownloadTask extends AsyncTask<String, Integer, Integer> {
 
         }
         return TYPE_FAILED;
-    }
-
-    private long getContentLength(String downlaodUrl) throws IOException {
-        OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder()
-                .url(downlaodUrl)
-                .build();
-        Response response = client.newCall(request).execute();
-        if (response != null && response.isSuccessful()) {
-            long contentLength = response.body().contentLength();
-            response.close();
-            return contentLength;
-        }
-        return 0;
-
     }
 
 
@@ -156,5 +141,21 @@ public class DownloadTask extends AsyncTask<String, Integer, Integer> {
     public void cancelDownload(){
         isCanceled = true;
     }
+
+    private long getContentLength(String downlaodUrl) throws IOException {
+        OkHttpClient client = new OkHttpClient();
+        Request request = new Request.Builder()
+                .url(downlaodUrl)
+                .build();
+        Response response = client.newCall(request).execute();
+        if (response != null && response.isSuccessful()) {
+            long contentLength = response.body().contentLength();
+            response.close();
+            return contentLength;
+        }
+        return 0;
+
+    }
+
 
 }
